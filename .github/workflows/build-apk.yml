@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:  # Allow manual trigger
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,11 +17,19 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
     - name: Install system dependencies
       run: |
@@ -27,7 +38,6 @@ jobs:
           git \
           zip \
           unzip \
-          openjdk-17-jdk \
           autoconf \
           libtool \
           pkg-config \
@@ -38,12 +48,19 @@ jobs:
           libffi-dev \
           libssl-dev \
           lld \
-          ccache
+          ccache \
+          python3-dev
+
+    - name: Configure git
+      run: |
+        git config --global user.email "builder@github.com"
+        git config --global user.name "GitHub Builder"
+        git config --global --add safe.directory '*'
 
     - name: Install Python dependencies
       run: |
-        pip install --upgrade pip
-        pip install buildozer cython virtualenv
+        pip install --upgrade pip wheel setuptools
+        pip install buildozer cython==0.29.36 virtualenv
 
     - name: Cache buildozer
       uses: actions/cache@v4
@@ -51,15 +68,23 @@ jobs:
         path: |
           ~/.buildozer
           .buildozer
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        key: ${{ runner.os }}-buildozer-v2-${{ hashFiles('buildozer.spec') }}
         restore-keys: |
-          ${{ runner.os }}-buildozer-
+          ${{ runner.os }}-buildozer-v2-
 
     - name: Build APK with Buildozer
       run: |
-        yes | buildozer android debug 2>&1 | tee build.log
+        yes | buildozer -v android debug 2>&1 | tee build.log
       env:
         BUILDOZER_WARN_ON_ROOT: 0
+
+    - name: List build outputs
+      if: always()
+      run: |
+        echo "=== Checking bin directory ==="
+        ls -la bin/ 2>/dev/null || echo "bin/ not found"
+        echo "=== Checking for APK files ==="
+        find . -name "*.apk" 2>/dev/null || echo "No APK files found"
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
@@ -67,6 +92,7 @@ jobs:
         name: orion-ddh-apk
         path: bin/*.apk
         retention-days: 30
+        if-no-files-found: warn
 
     - name: Upload build log on failure
       if: failure()
