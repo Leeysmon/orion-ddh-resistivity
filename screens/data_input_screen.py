@@ -7,6 +7,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.scatter import Scatter
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -213,7 +214,16 @@ class DataInputScreen(Screen):
         headers_scroll.add_widget(headers_layout)
         self.main_layout.add_widget(headers_scroll)
         
-        # Scrollable data table
+        # Scrollable data table with pan/zoom support
+        self.scatter = Scatter(
+            do_rotation=False,
+            do_translation=True,
+            scale_min=0.5,
+            scale_max=3.0,
+            auto_bring_to_front=False,
+            size_hint=(1, 1)
+        )
+        
         self.table_scroll = ScrollView(size_hint=(1, 1))
         
         self.table_layout = GridLayout(
@@ -226,7 +236,8 @@ class DataInputScreen(Screen):
         self.table_layout.bind(minimum_height=self.table_layout.setter('height'))
         
         self.table_scroll.add_widget(self.table_layout)
-        self.main_layout.add_widget(self.table_scroll)
+        self.scatter.add_widget(self.table_scroll)
+        self.main_layout.add_widget(self.scatter)
         
         # Bottom action buttons
         bottom_buttons = BoxLayout(
@@ -603,11 +614,31 @@ class DataInputScreen(Screen):
         for row in valid_rows:
             app.add_measurement(row.copy())
         
-        # Generate filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Get hole data
         hole_data = app.get_hole_data()
         hole_id = hole_data.get('hole_id', 'unknown') if hole_data else 'unknown'
-        filename = f"OrionDDH_{hole_id}_{timestamp}.csv"
+        
+        # Extract numeric box numbers (exclude "Blank" entries)
+        box_numbers = []
+        for row in valid_rows:
+            box_val = row.get('box_num', '').strip()
+            if box_val.lower() != 'blank':
+                try:
+                    box_numbers.append(int(box_val))
+                except ValueError:
+                    pass  # Skip non-numeric box values
+        
+        # Determine box range for filename
+        if box_numbers:
+            min_box = min(box_numbers)
+            max_box = max(box_numbers)
+            box_range = f"Box {min_box} to {max_box}"
+        else:
+            box_range = "Box Data"
+        
+        # Generate filename: HoleID_Core Resistivity_Box XX to YY_YYYYMMDD.csv
+        date_str = datetime.now().strftime('%Y%m%d')
+        filename = f"{hole_id}_Core Resistivity_{box_range}_{date_str}.csv"
         
         # Determine filepath
         if platform == 'android':
@@ -701,33 +732,56 @@ class DataInputScreen(Screen):
     def _send_android_email(self, filepath, emails):
         """Send email on Android using intent"""
         try:
-            from jnius import autoclass
+            from jnius import autoclass, cast
+            from jnius import jarray
             
             Intent = autoclass('android.content.Intent')
             Uri = autoclass('android.net.Uri')
             File = autoclass('java.io.File')
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            String = autoclass('java.lang.String')
+            
+            # Filter valid emails
+            valid_emails = [email.strip() for email in emails if email.strip()]
             
             intent = Intent(Intent.ACTION_SEND)
-            intent.setType('text/csv')
+            intent.setType('message/rfc822')  # Use rfc822 for better email app compatibility
             
-            # Add recipients
-            intent.putExtra(Intent.EXTRA_EMAIL, emails)
-            intent.putExtra(Intent.EXTRA_SUBJECT, 'Orion-DDH Resistivity Data')
-            intent.putExtra(Intent.EXTRA_TEXT, 'Please find attached the resistivity measurement data.')
+            # Create proper Java String array for email recipients
+            if valid_emails:
+                # Create a Java String array using jarray
+                java_email_array = jarray(String)(len(valid_emails))
+                for i, email in enumerate(valid_emails):
+                    java_email_array[i] = String(email)
+                intent.putExtra(Intent.EXTRA_EMAIL, java_email_array)
+            
+            intent.putExtra(Intent.EXTRA_SUBJECT, String('Orion-DDH Resistivity Data'))
+            intent.putExtra(Intent.EXTRA_TEXT, String('Please find attached the resistivity measurement data.'))
             
             # Attach file
             file = File(filepath)
-            uri = Uri.fromFile(file)
-            intent.putExtra(Intent.EXTRA_STREAM, uri)
+            context = PythonActivity.mActivity.getApplicationContext()
+            
+            try:
+                # Try to get FileProvider (for Android 7+)
+                FileProvider = autoclass('androidx.core.content.FileProvider')
+                authority = str(context.getPackageName()) + '.fileprovider'
+                uri = FileProvider.getUriForFile(context, String(authority), file)
+            except Exception:
+                # Fallback to Uri.fromFile for older Android or if FileProvider not configured
+                uri = Uri.fromFile(file)
+            
+            intent.putExtra(Intent.EXTRA_STREAM, cast('android.os.Parcelable', uri))
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             
             # Start email app chooser
-            chooser = Intent.createChooser(intent, 'Send Email')
+            chooser = Intent.createChooser(intent, String('Send Email'))
             PythonActivity.mActivity.startActivity(chooser)
             
             self.show_message('Email', 'Opening email app...')
         except Exception as e:
-            self.show_message('Email Error', f'Could not open email app: {str(e)}')
+            # If intent fails, show manual instructions
+            self.show_message('Email Info', f'Data saved to:\n{filepath}\n\nTo send manually, open your email app and attach the file.\n\nRecipients:\n{", ".join(emails)}')
     
     def _send_desktop_email(self, filepath, emails):
         """Handle email on desktop (Windows) - open default mail client"""

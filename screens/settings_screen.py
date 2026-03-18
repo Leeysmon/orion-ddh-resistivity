@@ -7,6 +7,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.scatter import Scatter
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -78,6 +79,16 @@ class SettingsScreen(Screen):
         header.add_widget(title)
         
         main_layout.add_widget(header)
+        
+        # Scatter for pan/zoom support
+        self.scatter = Scatter(
+            do_rotation=False,
+            do_translation=True,
+            scale_min=0.5,
+            scale_max=3.0,
+            auto_bring_to_front=False,
+            size_hint=(1, 1)
+        )
         
         # Scrollable settings
         scroll = ScrollView(size_hint=(1, 1))
@@ -262,7 +273,7 @@ class SettingsScreen(Screen):
         settings_layout.add_widget(about_label)
         
         about_info = Label(
-            text='Orion-DDH_v1\nDDH Resistivity Data Logger\nVersion 1.0\n\nFor geological resistivity\nmeasurement data collection.',
+            text='Orion-DDH_v1\nDDH Resistivity Data Logger\nVersion 1.1\n\nFor geological resistivity\nmeasurement data collection.',
             font_size=dp(14),
             size_hint_y=None,
             height=dp(120),
@@ -274,7 +285,8 @@ class SettingsScreen(Screen):
         settings_layout.add_widget(about_info)
         
         scroll.add_widget(settings_layout)
-        main_layout.add_widget(scroll)
+        self.scatter.add_widget(scroll)
+        main_layout.add_widget(self.scatter)
         
         # Bottom buttons
         buttons_layout = BoxLayout(
