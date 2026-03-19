@@ -7,11 +7,11 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
-from kivy.uix.scatter import Scatter
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.switch import Switch
+from kivy.uix.slider import Slider
 from kivy.uix.popup import Popup
 from kivy.graphics import Color, Rectangle
 from kivy.metrics import dp
@@ -80,18 +80,16 @@ class SettingsScreen(Screen):
         
         main_layout.add_widget(header)
         
-        # Scatter for pan/zoom support
-        self.scatter = Scatter(
-            do_rotation=False,
-            do_translation=True,
-            scale_min=0.5,
-            scale_max=3.0,
-            auto_bring_to_front=False,
-            size_hint=(1, 1)
+        # Scrollable settings with visible scroll bars
+        scroll = ScrollView(
+            size_hint=(1, 1),
+            do_scroll_x=False,
+            do_scroll_y=True,
+            bar_width=dp(12),
+            bar_color=(0.4, 0.6, 0.8, 0.9),
+            bar_inactive_color=(0.3, 0.4, 0.5, 0.6),
+            scroll_type=['bars', 'content']
         )
-        
-        # Scrollable settings
-        scroll = ScrollView(size_hint=(1, 1))
         
         settings_layout = GridLayout(
             cols=1,
@@ -173,6 +171,47 @@ class SettingsScreen(Screen):
         self.autosave_switch = Switch(active=True, size_hint_x=0.3)
         autosave_container.add_widget(self.autosave_switch)
         settings_layout.add_widget(autosave_container)
+        
+        # Zoom/Magnification slider
+        zoom_container = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            height=dp(90),
+            spacing=dp(5)
+        )
+        
+        zoom_header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(30))
+        zoom_label = Label(
+            text='Display Zoom',
+            font_size=dp(16),
+            halign='left',
+            color=(0.8, 0.8, 0.85, 1)
+        )
+        zoom_label.bind(size=zoom_label.setter('text_size'))
+        zoom_header.add_widget(zoom_label)
+        
+        self.zoom_value_label = Label(
+            text='100%',
+            font_size=dp(16),
+            size_hint_x=0.3,
+            halign='right',
+            color=(0.3, 0.8, 0.5, 1)
+        )
+        self.zoom_value_label.bind(size=self.zoom_value_label.setter('text_size'))
+        zoom_header.add_widget(self.zoom_value_label)
+        zoom_container.add_widget(zoom_header)
+        
+        self.zoom_slider = Slider(
+            min=50,
+            max=200,
+            value=100,
+            step=10,
+            size_hint_y=None,
+            height=dp(50)
+        )
+        self.zoom_slider.bind(value=self.on_zoom_change)
+        zoom_container.add_widget(self.zoom_slider)
+        settings_layout.add_widget(zoom_container)
         
         # Default Logger Name
         logger_container = BoxLayout(
@@ -273,7 +312,7 @@ class SettingsScreen(Screen):
         settings_layout.add_widget(about_label)
         
         about_info = Label(
-            text='Orion-DDH_v1\nDDH Resistivity Data Logger\nVersion 1.1\n\nFor geological resistivity\nmeasurement data collection.',
+            text='Orion-DDH_v1\nDDH Resistivity Data Logger\nVersion 1.2\n\nFor geological resistivity\nmeasurement data collection.',
             font_size=dp(14),
             size_hint_y=None,
             height=dp(120),
@@ -285,8 +324,7 @@ class SettingsScreen(Screen):
         settings_layout.add_widget(about_info)
         
         scroll.add_widget(settings_layout)
-        self.scatter.add_widget(scroll)
-        main_layout.add_widget(self.scatter)
+        main_layout.add_widget(scroll)
         
         # Bottom buttons
         buttons_layout = BoxLayout(
@@ -338,6 +376,11 @@ class SettingsScreen(Screen):
                 self.logger_input.text = self.settings.get('default_logger', '')
                 self.project_input.text = self.settings.get('default_project', '')
                 
+                # Load zoom
+                zoom = self.settings.get('zoom', 100)
+                self.zoom_slider.value = zoom
+                self.zoom_value_label.text = f'{int(zoom)}%'
+                
                 # Load emails
                 emails = self.settings.get('emails', self.DEFAULT_EMAILS)
                 for i, email_input in enumerate(self.email_inputs):
@@ -356,7 +399,8 @@ class SettingsScreen(Screen):
                 'autosave': self.autosave_switch.active,
                 'default_logger': self.logger_input.text,
                 'default_project': self.project_input.text,
-                'emails': emails
+                'emails': emails,
+                'zoom': self.zoom_slider.value
             }
             
             store = JsonStore(self.get_storage_path())
@@ -372,12 +416,21 @@ class SettingsScreen(Screen):
         self.autosave_switch.active = True
         self.logger_input.text = ''
         self.project_input.text = ''
+        self.zoom_slider.value = 100
         
         # Reset emails to defaults
         for i, email_input in enumerate(self.email_inputs):
             email_input.text = self.DEFAULT_EMAILS[i]
         
         self.show_message('Reset', 'Settings reset to defaults.')
+    
+    def on_zoom_change(self, instance, value):
+        """Handle zoom slider change"""
+        self.zoom_value_label.text = f'{int(value)}%'
+    
+    def get_zoom_scale(self):
+        """Get the current zoom scale factor (1.0 = 100%)"""
+        return self.zoom_slider.value / 100.0
     
     def get_registered_emails(self):
         """Get list of non-empty registered emails"""

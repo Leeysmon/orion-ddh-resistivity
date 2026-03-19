@@ -37,14 +37,14 @@ class HoleIDScreen(Screen):
         main_layout.bind(size=self._update_rect, pos=self._update_rect)
         
         # Header with back button and title
-        header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50))
+        header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
         
         back_btn = Button(
             text='< Back',
             size_hint_x=0.25,
             background_color=(0.3, 0.3, 0.35, 1),
             background_normal='',
-            font_size=dp(14)
+            font_size=dp(20)
         )
         back_btn.bind(on_release=self.go_back)
         header.add_widget(back_btn)
@@ -52,7 +52,7 @@ class HoleIDScreen(Screen):
         title = Label(
             text='[b]Hole ID Setup[/b]',
             markup=True,
-            font_size=dp(22),
+            font_size=dp(26),
             size_hint_x=0.75,
             color=(0.9, 0.9, 0.95, 1)
         )
@@ -60,8 +60,16 @@ class HoleIDScreen(Screen):
         
         main_layout.add_widget(header)
         
-        # Scrollable form container
-        scroll = ScrollView(size_hint=(1, 1))
+        # Scrollable form container with visible scroll bars
+        scroll = ScrollView(
+            size_hint=(1, 1),
+            do_scroll_x=False,
+            do_scroll_y=True,
+            bar_width=dp(12),
+            bar_color=(0.4, 0.6, 0.8, 0.9),
+            bar_inactive_color=(0.3, 0.4, 0.5, 0.6),
+            scroll_type=['bars', 'content']
+        )
         
         form_layout = GridLayout(
             cols=1,
@@ -86,16 +94,16 @@ class HoleIDScreen(Screen):
             field_container = BoxLayout(
                 orientation='vertical',
                 size_hint_y=None,
-                height=dp(80),
+                height=dp(110),
                 spacing=dp(5)
             )
             
             # Label
             label = Label(
                 text=field_label,
-                font_size=dp(16),
+                font_size=dp(22),
                 size_hint_y=None,
-                height=dp(25),
+                height=dp(35),
                 halign='left',
                 valign='middle',
                 color=(0.8, 0.8, 0.85, 1)
@@ -108,13 +116,13 @@ class HoleIDScreen(Screen):
                 hint_text=hint,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(45),
-                font_size=dp(16),
+                height=dp(60),
+                font_size=dp(22),
                 background_color=(0.25, 0.25, 0.3, 1),
                 foreground_color=(1, 1, 1, 1),
                 cursor_color=(1, 1, 1, 1),
                 hint_text_color=(0.5, 0.5, 0.55, 1),
-                padding=[dp(10), dp(10), dp(10), dp(10)]
+                padding=[dp(15), dp(15), dp(15), dp(15)]
             )
             
             # Set default date for date fields
@@ -137,7 +145,7 @@ class HoleIDScreen(Screen):
         buttons_layout = BoxLayout(
             orientation='horizontal',
             size_hint_y=None,
-            height=dp(60),
+            height=dp(70),
             spacing=dp(15)
         )
         
@@ -146,7 +154,7 @@ class HoleIDScreen(Screen):
             text='Clear',
             background_color=(0.6, 0.3, 0.3, 1),
             background_normal='',
-            font_size=dp(16)
+            font_size=dp(22)
         )
         clear_btn.bind(on_release=self.clear_fields)
         buttons_layout.add_widget(clear_btn)
@@ -156,7 +164,7 @@ class HoleIDScreen(Screen):
             text='Save',
             background_color=(0.3, 0.7, 0.5, 1),
             background_normal='',
-            font_size=dp(16)
+            font_size=dp(22)
         )
         save_btn.bind(on_release=self.save_data)
         buttons_layout.add_widget(save_btn)

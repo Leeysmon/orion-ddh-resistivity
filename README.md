@@ -103,4 +103,4 @@ ORION-DDH-RESISITIVITY/
 
 ## Version
 
-Version 1.1
+Version 1.2

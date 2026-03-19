@@ -7,7 +7,6 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
-from kivy.uix.scatter import Scatter
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -104,6 +103,7 @@ class DataInputScreen(Screen):
         self.row_layouts = []  # List of row layout widgets
         self.blank_count = 0  # Track consecutive blanks
         self.shown_blank_reminder = False  # Track if 4th blank popup shown
+        self.zoom_scale = 1.0  # Default zoom scale
         self.build_ui()
     
     def build_ui(self):
@@ -118,14 +118,14 @@ class DataInputScreen(Screen):
         self.main_layout.bind(size=self._update_rect, pos=self._update_rect)
         
         # Header with back button and title
-        header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50))
+        header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(60))
         
         back_btn = Button(
             text='< Menu',
             size_hint_x=0.2,
             background_color=(0.3, 0.3, 0.35, 1),
             background_normal='',
-            font_size=dp(12)
+            font_size=dp(18)
         )
         back_btn.bind(on_release=self.go_back)
         header.add_widget(back_btn)
@@ -133,7 +133,7 @@ class DataInputScreen(Screen):
         title = Label(
             text='[b]Data Input[/b]',
             markup=True,
-            font_size=dp(20),
+            font_size=dp(24),
             size_hint_x=0.6,
             color=(0.9, 0.9, 0.95, 1)
         )
@@ -144,7 +144,7 @@ class DataInputScreen(Screen):
             size_hint_x=0.2,
             background_color=(0.3, 0.7, 0.5, 1),
             background_normal='',
-            font_size=dp(12)
+            font_size=dp(18)
         )
         add_row_btn.bind(on_release=self.add_new_row)
         header.add_widget(add_row_btn)
@@ -154,38 +154,40 @@ class DataInputScreen(Screen):
         # Info bar showing current hole info
         self.info_bar = Label(
             text='Hole: Not Set | Size: Not Set',
-            font_size=dp(12),
+            font_size=dp(18),
             size_hint_y=None,
-            height=dp(25),
+            height=dp(35),
             color=(0.6, 0.8, 0.6, 1)
         )
         self.main_layout.add_widget(self.info_bar)
         
-        # Column headers (added Delete column)
+        # Column headers (added Delete column) - doubled widths for better visibility
         self.column_headers = [
-            ('Date', dp(70)),
-            ('HoleID', dp(60)),
-            ('Size', dp(45)),
-            ('Box #', dp(50)),
-            ('Time', dp(55)),
-            ('V1[V]', dp(50)),
-            ('V2[mV]', dp(55)),
-            ('Comment', dp(70)),
-            ('Del', dp(30)),  # Delete button column
+            ('Date', dp(140)),
+            ('HoleID', dp(120)),
+            ('Size', dp(90)),
+            ('Box #', dp(100)),
+            ('Time', dp(110)),
+            ('V1[V]', dp(100)),
+            ('V2[mV]', dp(110)),
+            ('Comment', dp(140)),
+            ('Del', dp(60)),  # Delete button column
         ]
         
         headers_scroll = ScrollView(
             size_hint_y=None,
-            height=dp(35),
+            height=dp(50),
             do_scroll_y=False,
-            bar_width=0
+            bar_width=dp(10),
+            bar_color=(0.5, 0.5, 0.6, 0.8),
+            bar_inactive_color=(0.4, 0.4, 0.5, 0.5)
         )
         
         headers_layout = BoxLayout(
             orientation='horizontal',
             size_hint_x=None,
             size_hint_y=None,
-            height=dp(35),
+            height=dp(50),
             spacing=dp(2)
         )
         headers_layout.width = sum([w for _, w in self.column_headers]) + dp(2) * len(self.column_headers)
@@ -193,10 +195,10 @@ class DataInputScreen(Screen):
         for col_name, col_width in self.column_headers:
             header_cell = Label(
                 text=col_name,
-                font_size=dp(10),
+                font_size=dp(20),
                 size_hint=(None, None),
                 width=col_width,
-                height=dp(35),
+                height=dp(50),
                 color=(0.9, 0.9, 0.95, 1),
                 halign='center',
                 valign='middle'
@@ -214,17 +216,16 @@ class DataInputScreen(Screen):
         headers_scroll.add_widget(headers_layout)
         self.main_layout.add_widget(headers_scroll)
         
-        # Scrollable data table with pan/zoom support
-        self.scatter = Scatter(
-            do_rotation=False,
-            do_translation=True,
-            scale_min=0.5,
-            scale_max=3.0,
-            auto_bring_to_front=False,
-            size_hint=(1, 1)
+        # Scrollable data table with visible scroll bars
+        self.table_scroll = ScrollView(
+            size_hint=(1, 1),
+            do_scroll_x=True,
+            do_scroll_y=True,
+            bar_width=dp(12),
+            bar_color=(0.4, 0.6, 0.8, 0.9),
+            bar_inactive_color=(0.3, 0.4, 0.5, 0.6),
+            scroll_type=['bars', 'content']
         )
-        
-        self.table_scroll = ScrollView(size_hint=(1, 1))
         
         self.table_layout = GridLayout(
             cols=1,
@@ -236,14 +237,13 @@ class DataInputScreen(Screen):
         self.table_layout.bind(minimum_height=self.table_layout.setter('height'))
         
         self.table_scroll.add_widget(self.table_layout)
-        self.scatter.add_widget(self.table_scroll)
-        self.main_layout.add_widget(self.scatter)
+        self.main_layout.add_widget(self.table_scroll)
         
         # Bottom action buttons
         bottom_buttons = BoxLayout(
             orientation='horizontal',
             size_hint_y=None,
-            height=dp(50),
+            height=dp(60),
             spacing=dp(8),
             padding=[0, dp(5), 0, 0]
         )
@@ -252,7 +252,7 @@ class DataInputScreen(Screen):
             text='Clear All',
             background_color=(0.6, 0.3, 0.3, 1),
             background_normal='',
-            font_size=dp(12)
+            font_size=dp(18)
         )
         clear_btn.bind(on_release=self.clear_all_data)
         bottom_buttons.add_widget(clear_btn)
@@ -261,7 +261,7 @@ class DataInputScreen(Screen):
             text='Export CSV',
             background_color=(0.2, 0.6, 0.8, 1),
             background_normal='',
-            font_size=dp(12)
+            font_size=dp(18)
         )
         export_btn.bind(on_release=self.export_data)
         bottom_buttons.add_widget(export_btn)
@@ -270,7 +270,7 @@ class DataInputScreen(Screen):
             text='Send',
             background_color=(0.5, 0.3, 0.7, 1),
             background_normal='',
-            font_size=dp(12)
+            font_size=dp(18)
         )
         send_btn.bind(on_release=self.send_data)
         bottom_buttons.add_widget(send_btn)
@@ -321,7 +321,7 @@ class DataInputScreen(Screen):
             orientation='horizontal',
             size_hint_y=None,
             size_hint_x=None,
-            height=dp(40),
+            height=dp(60),
             spacing=dp(2)
         )
         row_layout.width = sum([w for _, w in self.column_headers]) + dp(2) * len(self.column_headers)
@@ -348,10 +348,10 @@ class DataInputScreen(Screen):
                     text='X',
                     size_hint=(None, None),
                     width=col_width,
-                    height=dp(40),
+                    height=dp(60),
                     background_color=(0.7, 0.2, 0.2, 1),
                     background_normal='',
-                    font_size=dp(12)
+                    font_size=dp(24)
                 )
                 del_btn.bind(on_release=lambda btn, ri=row_index: self.delete_row(ri))
                 row_widgets['delete_btn'] = del_btn
@@ -360,10 +360,10 @@ class DataInputScreen(Screen):
                 # Read-only auto-populated fields
                 cell = Label(
                     text='',
-                    font_size=dp(9),
+                    font_size=dp(18),
                     size_hint=(None, None),
                     width=col_width,
-                    height=dp(40),
+                    height=dp(60),
                     color=(0.7, 0.7, 0.75, 1),
                     halign='center',
                     valign='middle'
@@ -384,12 +384,12 @@ class DataInputScreen(Screen):
                     multiline=False,
                     size_hint=(None, None),
                     width=col_width,
-                    height=dp(40),
-                    font_size=dp(10),
+                    height=dp(60),
+                    font_size=dp(20),
                     background_color=(0.22, 0.22, 0.27, 1),
                     foreground_color=(1, 1, 1, 1),
                     cursor_color=(1, 1, 1, 1),
-                    padding=[dp(3), dp(10), dp(3), dp(10)],
+                    padding=[dp(5), dp(15), dp(5), dp(15)],
                     halign='center'
                 )
                 
