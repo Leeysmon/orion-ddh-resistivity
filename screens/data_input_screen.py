@@ -19,12 +19,7 @@ from kivy.clock import Clock
 from kivy.storage.jsonstore import JsonStore
 from kivy.utils import platform
 from datetime import datetime
-import smtplib
 import os
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
 
 
 class DoraemonWidget(Widget):

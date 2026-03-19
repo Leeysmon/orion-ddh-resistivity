@@ -114,7 +114,7 @@ class MenuScreen(Screen):
         
         # Version info
         version_label = Label(
-            text='Version 1.2',
+            text='Version 1.3',
             font_size=dp(12),
             size_hint_y=0.05,
             color=(0.5, 0.5, 0.55, 1)
