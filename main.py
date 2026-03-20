@@ -1,5 +1,5 @@
 """
-Orion-DDH_v1 - Android Data Input Application
+Orion-DDH - Android Data Input Application
 Main entry point for the Kivy application
 """
 
@@ -23,12 +23,12 @@ from data.data_manager import DataManager
 
 
 class OrionDDHApp(App):
-    """Main application class for Orion-DDH_v1"""
+    """Main application class for Orion-DDH"""
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.data_manager = DataManager()
-        self.title = "Orion-DDH_v1"
+        self.title = "Orion-DDH"
     
     def build(self):
         """Build the application UI"""

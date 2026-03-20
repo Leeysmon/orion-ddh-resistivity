@@ -1,5 +1,5 @@
 """
-Data Input Screen for Orion-DDH_v1 application
+Data Input Screen for Orion-DDH application
 Excel-style data table for resistivity measurements
 """
 
@@ -12,6 +12,8 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
 from kivy.uix.widget import Widget
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle, Ellipse, Line
 from kivy.metrics import dp
 from kivy.app import App
@@ -20,10 +22,11 @@ from kivy.storage.jsonstore import JsonStore
 from kivy.utils import platform
 from datetime import datetime
 import os
+import json
 
 
-class DoraemonWidget(Widget):
-    """A fun Doraemon-style cat robot drawn with Kivy graphics"""
+class OrionLogoWidget(Widget):
+    """A widget displaying the Orion DDH logo"""
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -37,55 +40,32 @@ class DoraemonWidget(Widget):
         scale = min(self.width, self.height) / 120
         
         with self.canvas:
-            # Body (blue)
-            Color(0.0, 0.6, 0.9, 1)
-            Ellipse(pos=(cx - 35*scale, cy - 45*scale), size=(70*scale, 70*scale))
+            # Draw a stylized drill/geology icon
+            # Drill tower (dark blue)
+            Color(0.1, 0.3, 0.5, 1)
+            # Tower legs
+            Line(points=[cx - 20*scale, cy - 45*scale, cx - 10*scale, cy + 30*scale], width=3)
+            Line(points=[cx + 20*scale, cy - 45*scale, cx + 10*scale, cy + 30*scale], width=3)
+            # Cross beams
+            Line(points=[cx - 15*scale, cy - 20*scale, cx + 15*scale, cy - 20*scale], width=2)
+            Line(points=[cx - 12*scale, cy, cx + 12*scale, cy], width=2)
+            Line(points=[cx - 8*scale, cy + 20*scale, cx + 8*scale, cy + 20*scale], width=2)
             
-            # Face (white)
-            Color(1, 1, 1, 1)
-            Ellipse(pos=(cx - 30*scale, cy - 35*scale), size=(60*scale, 55*scale))
+            # Drill rod (silver/gray)
+            Color(0.6, 0.6, 0.7, 1)
+            Line(points=[cx, cy + 30*scale, cx, cy - 50*scale], width=4)
             
-            # Eyes (white)
-            Color(1, 1, 1, 1)
-            Ellipse(pos=(cx - 18*scale, cy + 5*scale), size=(18*scale, 22*scale))
-            Ellipse(pos=(cx, cy + 5*scale), size=(18*scale, 22*scale))
+            # Drill bit (gold/orange)
+            Color(0.9, 0.6, 0.2, 1)
+            Ellipse(pos=(cx - 6*scale, cy - 55*scale), size=(12*scale, 10*scale))
             
-            # Pupils (black)
-            Color(0, 0, 0, 1)
-            Ellipse(pos=(cx - 8*scale, cy + 10*scale), size=(8*scale, 10*scale))
-            Ellipse(pos=(cx + 4*scale, cy + 10*scale), size=(8*scale, 10*scale))
-            
-            # Nose (red)
-            Color(0.9, 0.2, 0.2, 1)
-            Ellipse(pos=(cx - 6*scale, cy - 2*scale), size=(12*scale, 12*scale))
-            
-            # Nose line
-            Color(0, 0, 0, 1)
-            Line(points=[cx, cy - 2*scale, cx, cy - 25*scale], width=1.5)
-            
-            # Mouth (arc-like using line)
-            Line(points=[cx - 25*scale, cy - 15*scale, cx, cy - 28*scale, cx + 25*scale, cy - 15*scale], width=1.5)
-            
-            # Whiskers
-            Line(points=[cx - 35*scale, cy - 5*scale, cx - 18*scale, cy - 8*scale], width=1)
-            Line(points=[cx - 35*scale, cy - 15*scale, cx - 18*scale, cy - 15*scale], width=1)
-            Line(points=[cx - 35*scale, cy - 25*scale, cx - 18*scale, cy - 22*scale], width=1)
-            Line(points=[cx + 35*scale, cy - 5*scale, cx + 18*scale, cy - 8*scale], width=1)
-            Line(points=[cx + 35*scale, cy - 15*scale, cx + 18*scale, cy - 15*scale], width=1)
-            Line(points=[cx + 35*scale, cy - 25*scale, cx + 18*scale, cy - 22*scale], width=1)
-            
-            # Collar (red)
-            Color(0.9, 0.2, 0.2, 1)
-            Ellipse(pos=(cx - 28*scale, cy - 48*scale), size=(56*scale, 12*scale))
-            
-            # Bell (yellow)
-            Color(1, 0.85, 0, 1)
-            Ellipse(pos=(cx - 8*scale, cy - 52*scale), size=(16*scale, 16*scale))
-            
-            # Bell detail
-            Color(0, 0, 0, 1)
-            Line(points=[cx - 6*scale, cy - 44*scale, cx + 6*scale, cy - 44*scale], width=1)
-            Line(points=[cx, cy - 44*scale, cx, cy - 38*scale], width=1)
+            # Rock layers at bottom
+            Color(0.5, 0.4, 0.3, 1)
+            Rectangle(pos=(cx - 35*scale, cy - 60*scale), size=(70*scale, 8*scale))
+            Color(0.4, 0.5, 0.4, 1)
+            Rectangle(pos=(cx - 35*scale, cy - 68*scale), size=(70*scale, 8*scale))
+            Color(0.6, 0.5, 0.4, 1)
+            Rectangle(pos=(cx - 35*scale, cy - 76*scale), size=(70*scale, 8*scale))
 
 
 class DataInputScreen(Screen):
@@ -99,7 +79,204 @@ class DataInputScreen(Screen):
         self.blank_count = 0  # Track consecutive blanks
         self.shown_blank_reminder = False  # Track if 4th blank popup shown
         self.zoom_scale = 1.0  # Default zoom scale
+        self.headers_scroll = None  # Reference for synchronized scrolling
+        self.table_scroll = None  # Reference for synchronized scrolling
+        self._init_storage()
         self.build_ui()
+    
+    def _init_storage(self):
+        """Initialize JSON storage for data persistence"""
+        try:
+            if platform == 'android':
+                from android.storage import app_storage_path
+                storage_path = app_storage_path()
+            else:
+                storage_path = '.'
+            self.data_store = JsonStore(os.path.join(storage_path, 'input_data.json'))
+        except Exception as e:
+            print(f"Error initializing storage: {e}")
+            self.data_store = None
+    
+    def _save_data(self):
+        """Save current row data to persistent storage"""
+        try:
+            if self.data_store:
+                # Convert rows to JSON-serializable format
+                serializable_rows = []
+                for row in self.rows:
+                    row_copy = row.copy()
+                    # Ensure all values are serializable
+                    serializable_rows.append(row_copy)
+                self.data_store.put('rows', data=serializable_rows)
+                self.data_store.put('state', 
+                    blank_count=self.blank_count,
+                    shown_blank_reminder=self.shown_blank_reminder
+                )
+        except Exception as e:
+            print(f"Error saving data: {e}")
+    
+    def _load_data(self):
+        """Load row data from persistent storage"""
+        try:
+            if self.data_store and self.data_store.exists('rows'):
+                saved_rows = self.data_store.get('rows').get('data', [])
+                if saved_rows:
+                    # Clear existing rows first
+                    self.rows = []
+                    self.row_widgets = []
+                    for layout in self.row_layouts:
+                        self.table_layout.remove_widget(layout)
+                    self.row_layouts = []
+                    
+                    # Restore saved rows
+                    for row_data in saved_rows:
+                        self._add_row_with_data(row_data)
+                    
+                    # Restore state
+                    if self.data_store.exists('state'):
+                        state = self.data_store.get('state')
+                        self.blank_count = state.get('blank_count', 0)
+                        self.shown_blank_reminder = state.get('shown_blank_reminder', False)
+                    return True
+            return False
+        except Exception as e:
+            print(f"Error loading data: {e}")
+            return False
+    
+    def _add_row_with_data(self, row_data):
+        """Add a row with pre-existing data"""
+        row_index = len(self.rows)
+        
+        row_layout = BoxLayout(
+            orientation='horizontal',
+            size_hint_y=None,
+            size_hint_x=None,
+            height=dp(60),
+            spacing=dp(2)
+        )
+        row_layout.width = sum([w for _, w in self.column_headers]) + dp(2) * len(self.column_headers)
+        
+        row_widgets = {}
+        
+        # Create cells for each column
+        for col_index, (col_name, col_width) in enumerate(self.column_headers):
+            if col_name == 'Blank':
+                # Checkbox for blank indicator
+                checkbox_layout = BoxLayout(
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60)
+                )
+                with checkbox_layout.canvas.before:
+                    Color(0.2, 0.2, 0.25, 1)
+                    Rectangle(pos=checkbox_layout.pos, size=checkbox_layout.size)
+                checkbox_layout.bind(pos=self._update_layout_bg, size=self._update_layout_bg)
+                
+                checkbox = CheckBox(
+                    size_hint=(None, None),
+                    size=(dp(40), dp(40)),
+                    pos_hint={'center_x': 0.5, 'center_y': 0.5},
+                    active=row_data.get('is_blank', False)
+                )
+                checkbox.bind(active=lambda cb, val, ri=row_index: self.on_blank_checked(ri, val))
+                checkbox_layout.add_widget(checkbox)
+                row_widgets['blank_checkbox'] = checkbox
+                row_layout.add_widget(checkbox_layout)
+            elif col_name == 'Del':
+                # Delete button
+                del_btn = Button(
+                    text='X',
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    background_color=(0.7, 0.2, 0.2, 1),
+                    background_normal='',
+                    font_size=dp(24)
+                )
+                del_btn.bind(on_release=lambda btn, ri=row_index: self.delete_row(ri))
+                row_widgets['delete_btn'] = del_btn
+                row_layout.add_widget(del_btn)
+            elif col_name in ['Date', 'HoleID', 'Size', 'Time']:
+                # Read-only auto-populated fields
+                key_map = {'Date': 'date', 'HoleID': 'hole_id', 'Size': 'hole_size', 'Time': 'time'}
+                field_key = key_map[col_name]
+                
+                cell = Label(
+                    text=row_data.get(field_key, ''),
+                    font_size=dp(18),
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    color=(0.7, 0.7, 0.75, 1),
+                    halign='center',
+                    valign='middle'
+                )
+                cell.bind(size=cell.setter('text_size'))
+                
+                with cell.canvas.before:
+                    Color(0.2, 0.2, 0.25, 1)
+                    Rectangle(pos=cell.pos, size=cell.size)
+                
+                row_widgets[field_key] = cell
+                row_layout.add_widget(cell)
+            elif col_name == 'Box #':
+                # Box # field with numeric keyboard
+                cell = TextInput(
+                    text=row_data.get('box_num', ''),
+                    multiline=False,
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    font_size=dp(20),
+                    background_color=(0.22, 0.22, 0.27, 1),
+                    foreground_color=(1, 1, 1, 1),
+                    cursor_color=(1, 1, 1, 1),
+                    padding=[dp(5), dp(15), dp(5), dp(15)],
+                    halign='center',
+                    input_filter='int',  # Numeric only
+                    input_type='number'  # Numeric keyboard on mobile
+                )
+                cell.bind(text=lambda instance, value, ri=row_index: self.on_box_changed(ri, value, instance))
+                row_widgets['box_num'] = cell
+                row_layout.add_widget(cell)
+            else:
+                # Editable fields
+                key_map = {'V1[V]': 'v1', 'V2[mV]': 'v2', 'Comment': 'comment'}
+                field_key = key_map[col_name]
+                
+                cell = TextInput(
+                    text=row_data.get(field_key, ''),
+                    multiline=False,
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    font_size=dp(20),
+                    background_color=(0.22, 0.22, 0.27, 1),
+                    foreground_color=(1, 1, 1, 1),
+                    cursor_color=(1, 1, 1, 1),
+                    padding=[dp(5), dp(15), dp(5), dp(15)],
+                    halign='center'
+                )
+                
+                if field_key in ['v1', 'v2']:
+                    cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_numeric_changed(ri, fn, value))
+                else:
+                    cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_field_changed(ri, fn, value))
+                
+                row_widgets[field_key] = cell
+                row_layout.add_widget(cell)
+        
+        self.rows.append(row_data)
+        self.row_widgets.append(row_widgets)
+        self.row_layouts.append(row_layout)
+        self.table_layout.add_widget(row_layout)
+    
+    def _update_layout_bg(self, instance, value):
+        """Update layout background"""
+        instance.canvas.before.clear()
+        with instance.canvas.before:
+            Color(0.2, 0.2, 0.25, 1)
+            Rectangle(pos=instance.pos, size=instance.size)
     
     def build_ui(self):
         """Build the data input UI"""
@@ -156,11 +333,12 @@ class DataInputScreen(Screen):
         )
         self.main_layout.add_widget(self.info_bar)
         
-        # Column headers (added Delete column) - doubled widths for better visibility
+        # Column headers (added Blank column before Box #)
         self.column_headers = [
             ('Date', dp(140)),
             ('HoleID', dp(120)),
             ('Size', dp(90)),
+            ('Blank', dp(70)),    # New Blank checkbox column
             ('Box #', dp(100)),
             ('Time', dp(110)),
             ('V1[V]', dp(100)),
@@ -169,23 +347,40 @@ class DataInputScreen(Screen):
             ('Del', dp(60)),  # Delete button column
         ]
         
-        headers_scroll = ScrollView(
-            size_hint_y=None,
-            height=dp(50),
+        # Calculate total width
+        total_width = sum([w for _, w in self.column_headers]) + dp(2) * len(self.column_headers)
+        
+        # Container for synchronized scrolling (headers + table together)
+        scroll_container = BoxLayout(orientation='vertical', size_hint=(1, 1))
+        
+        # Horizontal scroll wrapper - contains both headers and table
+        self.h_scroll = ScrollView(
+            size_hint=(1, 1),
+            do_scroll_x=True,
             do_scroll_y=False,
             bar_width=dp(10),
             bar_color=(0.5, 0.5, 0.6, 0.8),
-            bar_inactive_color=(0.4, 0.4, 0.5, 0.5)
+            bar_inactive_color=(0.4, 0.4, 0.5, 0.5),
+            scroll_type=['bars', 'content']
         )
         
+        # Inner container - holds both header and table vertically
+        inner_container = BoxLayout(
+            orientation='vertical',
+            size_hint_x=None,
+            size_hint_y=1,
+            width=total_width
+        )
+        
+        # Headers layout (no separate scroll, part of inner container)
         headers_layout = BoxLayout(
             orientation='horizontal',
             size_hint_x=None,
             size_hint_y=None,
             height=dp(50),
-            spacing=dp(2)
+            spacing=dp(2),
+            width=total_width
         )
-        headers_layout.width = sum([w for _, w in self.column_headers]) + dp(2) * len(self.column_headers)
         
         for col_name, col_width in self.column_headers:
             header_cell = Label(
@@ -208,13 +403,12 @@ class DataInputScreen(Screen):
             
             headers_layout.add_widget(header_cell)
         
-        headers_scroll.add_widget(headers_layout)
-        self.main_layout.add_widget(headers_scroll)
+        inner_container.add_widget(headers_layout)
         
-        # Scrollable data table with visible scroll bars
+        # Vertical scroll view for table data (inside the horizontal scroll)
         self.table_scroll = ScrollView(
             size_hint=(1, 1),
-            do_scroll_x=True,
+            do_scroll_x=False,
             do_scroll_y=True,
             bar_width=dp(12),
             bar_color=(0.4, 0.6, 0.8, 0.9),
@@ -226,13 +420,16 @@ class DataInputScreen(Screen):
             cols=1,
             spacing=dp(2),
             size_hint_y=None,
-            size_hint_x=None
+            size_hint_x=None,
+            width=total_width
         )
-        self.table_layout.width = sum([w for _, w in self.column_headers]) + dp(2) * len(self.column_headers)
         self.table_layout.bind(minimum_height=self.table_layout.setter('height'))
         
         self.table_scroll.add_widget(self.table_layout)
-        self.main_layout.add_widget(self.table_scroll)
+        inner_container.add_widget(self.table_scroll)
+        
+        self.h_scroll.add_widget(inner_container)
+        self.main_layout.add_widget(self.h_scroll)
         
         # Bottom action buttons
         bottom_buttons = BoxLayout(
@@ -302,9 +499,17 @@ class DataInputScreen(Screen):
     def on_enter(self):
         """Called when screen is entered"""
         self.refresh_data()
+        # Load saved data on first enter
+        if len(self.rows) <= 1 and (not self.rows or not self.rows[0].get('box_num', '').strip()):
+            loaded = self._load_data()
+            if not loaded:
+                # No saved data, ensure we have an empty row
+                if len(self.rows) == 0:
+                    self.add_new_row(None)
     
     def go_back(self, instance):
-        """Navigate back to menu"""
+        """Navigate back to menu, saving data first"""
+        self._save_data()
         self.manager.transition.direction = 'right'
         self.manager.current = 'menu'
     
@@ -325,6 +530,7 @@ class DataInputScreen(Screen):
             'date': '',
             'hole_id': '',
             'hole_size': '',
+            'is_blank': False,  # New field for blank checkbox
             'box_num': '',
             'time': '',
             'v1': '',
@@ -337,7 +543,28 @@ class DataInputScreen(Screen):
         
         # Create cells for each column
         for col_index, (col_name, col_width) in enumerate(self.column_headers):
-            if col_name == 'Del':
+            if col_name == 'Blank':
+                # Checkbox for blank indicator
+                checkbox_layout = BoxLayout(
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60)
+                )
+                with checkbox_layout.canvas.before:
+                    Color(0.2, 0.2, 0.25, 1)
+                    Rectangle(pos=checkbox_layout.pos, size=checkbox_layout.size)
+                checkbox_layout.bind(pos=self._update_layout_bg, size=self._update_layout_bg)
+                
+                checkbox = CheckBox(
+                    size_hint=(None, None),
+                    size=(dp(40), dp(40)),
+                    pos_hint={'center_x': 0.5, 'center_y': 0.5}
+                )
+                checkbox.bind(active=lambda cb, val, ri=row_index: self.on_blank_checked(ri, val))
+                checkbox_layout.add_widget(checkbox)
+                row_widgets['blank_checkbox'] = checkbox
+                row_layout.add_widget(checkbox_layout)
+            elif col_name == 'Del':
                 # Delete button
                 del_btn = Button(
                     text='X',
@@ -372,8 +599,28 @@ class DataInputScreen(Screen):
                 key_map = {'Date': 'date', 'HoleID': 'hole_id', 'Size': 'hole_size', 'Time': 'time'}
                 row_widgets[key_map[col_name]] = cell
                 row_layout.add_widget(cell)
+            elif col_name == 'Box #':
+                # Box # field with numeric keyboard only
+                cell = TextInput(
+                    text='',
+                    multiline=False,
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    font_size=dp(20),
+                    background_color=(0.22, 0.22, 0.27, 1),
+                    foreground_color=(1, 1, 1, 1),
+                    cursor_color=(1, 1, 1, 1),
+                    padding=[dp(5), dp(15), dp(5), dp(15)],
+                    halign='center',
+                    input_filter='int',  # Numeric only
+                    input_type='number'  # Show numeric keyboard on mobile
+                )
+                cell.bind(text=lambda instance, value, ri=row_index: self.on_box_changed(ri, value, instance))
+                row_widgets['box_num'] = cell
+                row_layout.add_widget(cell)
             else:
-                # Editable fields
+                # Editable fields (V1, V2, Comment)
                 cell = TextInput(
                     text='',
                     multiline=False,
@@ -388,14 +635,11 @@ class DataInputScreen(Screen):
                     halign='center'
                 )
                 
-                key_map = {'Box #': 'box_num', 'V1[V]': 'v1', 'V2[mV]': 'v2', 'Comment': 'comment'}
+                key_map = {'V1[V]': 'v1', 'V2[mV]': 'v2', 'Comment': 'comment'}
                 field_key = key_map[col_name]
                 row_widgets[field_key] = cell
                 
-                # Bind text change for Box # field to trigger auto-fill and B->Blank conversion
-                if col_name == 'Box #':
-                    cell.bind(text=lambda instance, value, ri=row_index: self.on_box_changed(ri, value, instance))
-                elif col_name in ['V1[V]', 'V2[mV]']:
+                if col_name in ['V1[V]', 'V2[mV]']:
                     cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_numeric_changed(ri, fn, value))
                 else:
                     cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_field_changed(ri, fn, value))
@@ -409,6 +653,47 @@ class DataInputScreen(Screen):
         
         # Scroll to bottom
         Clock.schedule_once(lambda dt: setattr(self.table_scroll, 'scroll_y', 0), 0.1)
+        
+        # Save data after adding row
+        self._save_data()
+    
+    def on_blank_checked(self, row_index, is_checked):
+        """Handle Blank checkbox change"""
+        if row_index >= len(self.rows):
+            return
+        
+        self.rows[row_index]['is_blank'] = is_checked
+        
+        if is_checked:
+            # Disable Box # field when Blank is checked
+            if 'box_num' in self.row_widgets[row_index]:
+                box_widget = self.row_widgets[row_index]['box_num']
+                box_widget.text = ''
+                box_widget.disabled = True
+                box_widget.background_color = (0.15, 0.15, 0.18, 1)
+            
+            # Track blank entries
+            self.blank_count += 1
+            
+            # Show 4th blank reminder
+            if self.blank_count == 4 and not self.shown_blank_reminder:
+                self.shown_blank_reminder = True
+                Clock.schedule_once(lambda dt: self.show_blank_reminder(), 0.2)
+            
+            # Auto-fill date, time, hole_id, hole_size when blank is checked
+            if not self.rows[row_index]['auto_filled']:
+                self.auto_fill_row(row_index)
+        else:
+            # Re-enable Box # field
+            if 'box_num' in self.row_widgets[row_index]:
+                box_widget = self.row_widgets[row_index]['box_num']
+                box_widget.disabled = False
+                box_widget.background_color = (0.22, 0.22, 0.27, 1)
+            
+            if self.blank_count > 0:
+                self.blank_count -= 1
+        
+        self._save_data()
     
     def delete_row(self, row_index):
         """Delete a specific row"""
@@ -416,7 +701,7 @@ class DataInputScreen(Screen):
             return
         
         # Check if this was a blank row for tracking
-        if self.rows[row_index].get('box_num', '').lower() == 'blank':
+        if self.rows[row_index].get('is_blank', False):
             self.blank_count = max(0, self.blank_count - 1)
         
         # Remove from table
@@ -428,63 +713,52 @@ class DataInputScreen(Screen):
         del self.row_widgets[row_index]
         del self.row_layouts[row_index]
         
-        # Update row indices for delete buttons
+        # Update row indices for delete buttons and checkboxes
         self._update_row_indices()
         
         # Ensure at least one row exists
         if len(self.rows) == 0:
             self.add_new_row(None)
+        
+        self._save_data()
     
     def _update_row_indices(self):
-        """Update delete button bindings after row deletion"""
+        """Update delete button and checkbox bindings after row deletion"""
         for i, widgets in enumerate(self.row_widgets):
             if 'delete_btn' in widgets:
                 btn = widgets['delete_btn']
                 btn.unbind(on_release=btn.on_release)
                 btn.bind(on_release=lambda b, ri=i: self.delete_row(ri))
+            if 'blank_checkbox' in widgets:
+                cb = widgets['blank_checkbox']
+                cb.unbind(active=cb.active)
+                cb.bind(active=lambda checkbox, val, ri=i: self.on_blank_checked(ri, val))
     
     def on_box_changed(self, row_index, value, instance):
-        """Handle Box # field change - trigger auto-fill and B->Blank conversion"""
+        """Handle Box # field change - trigger auto-fill"""
         if row_index >= len(self.rows):
             return
         
-        # Convert B/b to Blank
-        if value.lower() == 'b':
-            instance.text = 'Blank'
-            value = 'Blank'
-        
         self.rows[row_index]['box_num'] = value
-        
-        # Track blank entries
-        if value.lower() == 'blank':
-            self.blank_count += 1
-            
-            # Show 4th blank reminder
-            if self.blank_count == 4 and not self.shown_blank_reminder:
-                self.shown_blank_reminder = True
-                Clock.schedule_once(lambda dt: self.show_blank_reminder(), 0.2)
-        else:
-            # Reset blank count when non-blank is entered
-            if value.strip() and value.lower() != 'blank':
-                self.blank_count = 0
-                self.shown_blank_reminder = False
         
         # Auto-fill date, time, hole_id, hole_size when box number is entered
         if value.strip() and not self.rows[row_index]['auto_filled']:
             self.auto_fill_row(row_index)
+        
+        self._save_data()
     
     def show_blank_reminder(self):
-        """Show friendly reminder popup with Doraemon for 4th blank"""
+        """Show friendly reminder popup for 4th blank"""
         content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15))
         
-        # Doraemon drawing widget
-        doraemon = DoraemonWidget(size_hint=(1, 0.5))
-        content.add_widget(doraemon)
+        # Orion logo widget
+        logo = OrionLogoWidget(size_hint=(1, 0.5))
+        content.add_widget(logo)
         
-        # Japanese message
+        # Message
         message = Label(
-            text='あと1回ブランク測定を\n忘れないでね！\n\n(Remember to take one more\nBlank measurement!)',
-            font_size=dp(14),
+            text='Remember to take one more\nBlank measurement!\n\n(4th blank entry detected)',
+            font_size=dp(16),
             halign='center',
             valign='middle',
             color=(1, 1, 1, 1)
@@ -493,12 +767,12 @@ class DataInputScreen(Screen):
         content.add_widget(message)
         
         ok_btn = Button(
-            text='わかった！(OK!)',
+            text='OK',
             size_hint_y=None,
             height=dp(45),
             background_color=(0.2, 0.7, 0.9, 1),
             background_normal='',
-            font_size=dp(14)
+            font_size=dp(16)
         )
         content.add_widget(ok_btn)
         
@@ -525,6 +799,7 @@ class DataInputScreen(Screen):
         """Handle any field change"""
         if row_index < len(self.rows):
             self.rows[row_index][field_name] = value
+            self._save_data()
     
     def auto_fill_row(self, row_index):
         """Auto-fill date, time, hole_id, and hole_size for a row"""
@@ -549,25 +824,47 @@ class DataInputScreen(Screen):
         widgets['time'].text = self.rows[row_index]['time']
         widgets['hole_id'].text = self.rows[row_index]['hole_id']
         widgets['hole_size'].text = self.rows[row_index]['hole_size']
+        
+        self._save_data()
     
     def clear_all_data(self, instance):
         """Clear all data after confirmation"""
-        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
-        content.add_widget(Label(text='Clear all entered data?'))
+        content = BoxLayout(orientation='vertical', spacing=dp(15), padding=dp(15))
         
-        buttons = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(40))
+        # Warning message
+        warning_label = Label(
+            text='Continuing will delete all the entered data.\n\nAre you sure you want to continue?',
+            font_size=dp(16),
+            halign='center',
+            valign='middle',
+            color=(1, 0.8, 0.8, 1)
+        )
+        warning_label.bind(size=warning_label.setter('text_size'))
+        content.add_widget(warning_label)
         
-        cancel_btn = Button(text='Cancel', background_color=(0.5, 0.5, 0.55, 1), background_normal='')
-        confirm_btn = Button(text='Clear', background_color=(0.6, 0.3, 0.3, 1), background_normal='')
+        buttons = BoxLayout(spacing=dp(15), size_hint_y=None, height=dp(50))
+        
+        cancel_btn = Button(
+            text='Cancel',
+            background_color=(0.4, 0.4, 0.45, 1),
+            background_normal='',
+            font_size=dp(16)
+        )
+        confirm_btn = Button(
+            text='Yes, Clear All',
+            background_color=(0.7, 0.2, 0.2, 1),
+            background_normal='',
+            font_size=dp(16)
+        )
         
         buttons.add_widget(cancel_btn)
         buttons.add_widget(confirm_btn)
         content.add_widget(buttons)
         
         popup = Popup(
-            title='Confirm Clear',
+            title='Confirm Clear All Data',
             content=content,
-            size_hint=(0.8, 0.35),
+            size_hint=(0.85, 0.4),
             auto_dismiss=True
         )
         
@@ -588,6 +885,16 @@ class DataInputScreen(Screen):
         self.blank_count = 0
         self.shown_blank_reminder = False
         
+        # Clear persistent storage
+        if self.data_store:
+            try:
+                if self.data_store.exists('rows'):
+                    self.data_store.delete('rows')
+                if self.data_store.exists('state'):
+                    self.data_store.delete('state')
+            except Exception as e:
+                print(f"Error clearing storage: {e}")
+        
         # Clear in data manager
         app = App.get_running_app()
         app.clear_measurements()
@@ -599,14 +906,22 @@ class DataInputScreen(Screen):
         """Generate CSV file and return filepath"""
         app = App.get_running_app()
         
-        # Collect data from rows
-        valid_rows = [row for row in self.rows if row.get('box_num', '').strip()]
+        # Collect data from rows - include rows with box_num OR is_blank checked
+        valid_rows = [row for row in self.rows if row.get('box_num', '').strip() or row.get('is_blank', False)]
         
         if not valid_rows:
             return None, 'No data to export. Enter some measurements first.'
         
-        # Save measurements to data manager
+        # Prepare rows for export, converting is_blank to 'Blank' in box_num
+        export_rows = []
         for row in valid_rows:
+            row_copy = row.copy()
+            if row_copy.get('is_blank', False):
+                row_copy['box_num'] = 'Blank'
+            export_rows.append(row_copy)
+        
+        # Save measurements to data manager
+        for row in export_rows:
             app.add_measurement(row.copy())
         
         # Get hole data
@@ -615,7 +930,7 @@ class DataInputScreen(Screen):
         
         # Extract numeric box numbers (exclude "Blank" entries)
         box_numbers = []
-        for row in valid_rows:
+        for row in export_rows:
             box_val = row.get('box_num', '').strip()
             if box_val.lower() != 'blank':
                 try:

@@ -1,5 +1,5 @@
 """
-Data Manager for Orion-DDH_v1 application
+Data Manager for Orion-DDH application
 Handles data storage, retrieval, and export
 """
 
@@ -146,10 +146,10 @@ class DataManager:
                 
                 # Write measurement data
                 if self.measurements:
-                    headers = ['Date', 'HoleID', 'HoleSize', 'Box #', 'Time', 'V1[V]', 'V2[mV]', 'Comment']
+                    headers = ['Date', 'HoleID', 'HoleSize', 'Blank', 'Box #', 'Time', 'V1[V]', 'V2[mV]', 'Comment']
                     writer = csv.DictWriter(
                         csvfile,
-                        fieldnames=['date', 'hole_id', 'hole_size', 'box_num', 'time', 'v1', 'v2', 'comment'],
+                        fieldnames=['date', 'hole_id', 'hole_size', 'is_blank', 'box_num', 'time', 'v1', 'v2', 'comment'],
                         extrasaction='ignore'
                     )
                     
@@ -162,6 +162,7 @@ class DataManager:
                             'date': measurement.get('date', ''),
                             'hole_id': measurement.get('hole_id', ''),
                             'hole_size': measurement.get('hole_size', ''),
+                            'is_blank': 'Yes' if measurement.get('is_blank', False) else '',
                             'box_num': measurement.get('box_num', ''),
                             'time': measurement.get('time', ''),
                             'v1': measurement.get('v1', ''),

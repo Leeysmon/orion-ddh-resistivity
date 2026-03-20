@@ -1,5 +1,5 @@
 """
-Hole ID Screen for Orion-DDH_v1 application
+Hole ID Screen for Orion-DDH application
 Input screen for hole identification and metadata
 """
 

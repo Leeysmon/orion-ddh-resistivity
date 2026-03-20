@@ -1,5 +1,5 @@
 """
-Screens package for Orion-DDH_v1 application
+Screens package for Orion-DDH application
 """
 
 from screens.menu_screen import MenuScreen

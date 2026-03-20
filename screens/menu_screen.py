@@ -44,7 +44,7 @@ class MenuScreen(Screen):
         
         # App title
         title_label = Label(
-            text='[b]Orion-DDH_v1[/b]',
+            text='[b]Orion-DDH[/b]',
             markup=True,
             font_size=dp(28),
             size_hint_y=0.1,

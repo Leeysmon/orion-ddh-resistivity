@@ -1,7 +1,7 @@
 [app]
 
 # (str) Title of your application
-title = Orion-DDH_v1
+title = Orion-DDH
 
 # (str) Package name
 package.name = orionddh
@@ -40,10 +40,10 @@ requirements = python3,kivy
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/assets/icon.png
+presplash.filename = %(source.dir)s/assets/new_icon.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/assets/icon.png
+icon.filename = %(source.dir)s/assets/new_icon.png
 
 # (list) Supported orientations
 # Valid options are: landscape, portrait, portrait-reverse or landscape-reverse

@@ -1,5 +1,5 @@
 """
-Data package for Orion-DDH_v1 application
+Data package for Orion-DDH application
 """
 
 from data.data_manager import DataManager
