@@ -312,7 +312,7 @@ class SettingsScreen(Screen):
         settings_layout.add_widget(about_label)
         
         about_info = Label(
-            text='Orion-DDH\nDDH Resistivity Data Logger\nVersion 2.0\n\nFor geological resistivity\nmeasurement data collection.',
+            text='Orion-DDH\nDDH Resistivity Data Logger\nVersion 2.1\n\nFor geological resistivity\nmeasurement data collection.',
             font_size=dp(14),
             size_hint_y=None,
             height=dp(120),
@@ -435,6 +435,10 @@ class SettingsScreen(Screen):
     def get_registered_emails(self):
         """Get list of non-empty registered emails"""
         return [inp.text.strip() for inp in self.email_inputs if inp.text.strip()]
+    
+    def get_logger_name(self):
+        """Get the registered logger name"""
+        return self.logger_input.text.strip() if self.logger_input.text else ''
     
     def show_message(self, title, message):
         """Show a message popup"""

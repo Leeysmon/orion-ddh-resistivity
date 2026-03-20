@@ -986,19 +986,41 @@ class DataInputScreen(Screen):
             self.show_message('No Data' if 'No data' in error else 'Error', error)
             return
         
+        # Get settings for email
+        try:
+            settings_screen = self.manager.get_screen('settings')
+            emails = settings_screen.get_registered_emails()
+            logger_name = settings_screen.get_logger_name()
+        except Exception:
+            emails = []
+            logger_name = ''
+        
+        # Get filename for subject
+        import os
+        filename = os.path.basename(filepath)
+        # Remove .csv extension for cleaner subject
+        subject = filename.replace('.csv', '') if filename.endswith('.csv') else filename
+        
+        # Create email body
+        if logger_name:
+            body = f"Hi,\n\nPlease find attached the updated drill core resistivity data.\n\nBest,\n{logger_name}"
+        else:
+            body = "Hi,\n\nPlease find attached the updated drill core resistivity data.\n\nBest regards"
+        
         # Directly open email app with attachment
         try:
             if platform == 'android':
-                self._send_android_email_direct(filepath)
+                self._send_android_email_direct(filepath, emails, subject, body)
             else:
-                self._send_desktop_email_direct(filepath)
+                self._send_desktop_email_direct(filepath, emails, subject, body)
         except Exception as e:
             self.show_message('Send Failed', f'Could not open email app: {str(e)}')
     
-    def _send_android_email_direct(self, filepath):
-        """Open email app on Android with CSV attachment - user adds recipients"""
+    def _send_android_email_direct(self, filepath, emails, subject, body):
+        """Open email app on Android with CSV attachment and pre-filled recipients"""
         try:
             from jnius import autoclass, cast
+            from jnius import jarray
             
             Intent = autoclass('android.content.Intent')
             Uri = autoclass('android.net.Uri')
@@ -1009,9 +1031,17 @@ class DataInputScreen(Screen):
             intent = Intent(Intent.ACTION_SEND)
             intent.setType('text/csv')  # CSV mime type
             
-            # Set default subject (user can change it)
-            intent.putExtra(Intent.EXTRA_SUBJECT, String('Orion-DDH Resistivity Data'))
-            intent.putExtra(Intent.EXTRA_TEXT, String('Please find attached the resistivity measurement data from Orion-DDH.'))
+            # Add pre-registered email recipients
+            if emails:
+                java_email_array = jarray(String)(len(emails))
+                for i, email in enumerate(emails):
+                    java_email_array[i] = String(email)
+                intent.putExtra(Intent.EXTRA_EMAIL, java_email_array)
+            
+            # Set subject to filename
+            intent.putExtra(Intent.EXTRA_SUBJECT, String(subject))
+            # Set email body with logger signature
+            intent.putExtra(Intent.EXTRA_TEXT, String(body))
             
             # Attach file
             file = File(filepath)
@@ -1036,7 +1066,7 @@ class DataInputScreen(Screen):
         except Exception as e:
             self.show_message('Email Info', f'Data saved to:\n{filepath}\n\nPlease manually attach this file in your email app.')
     
-    def _send_desktop_email_direct(self, filepath):
+    def _send_desktop_email_direct(self, filepath, emails, subject, body):
         """Open email client on desktop with file info"""
         try:
             import webbrowser
@@ -1046,9 +1076,14 @@ class DataInputScreen(Screen):
             # Get just the filename for the message
             filename = os.path.basename(filepath)
             
-            subject = urllib.parse.quote('Orion-DDH Resistivity Data')
-            body = urllib.parse.quote(f'Please find attached the resistivity measurement data.\n\nFile: {filename}\nLocation: {filepath}')
-            mailto = f"mailto:?subject={subject}&body={body}"
+            # URL encode subject and body
+            encoded_subject = urllib.parse.quote(subject)
+            full_body = f'{body}\n\nFile: {filename}\nLocation: {filepath}'
+            encoded_body = urllib.parse.quote(full_body)
+            
+            # Build mailto with recipients if available
+            recipients = ','.join(emails) if emails else ''
+            mailto = f"mailto:{recipients}?subject={encoded_subject}&body={encoded_body}"
             
             webbrowser.open(mailto)
             self.show_message('Email Ready', f'Email client opened.\n\nPlease manually attach:\n{filepath}')
