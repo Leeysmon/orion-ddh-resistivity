@@ -71,6 +71,25 @@ class OrionDDHApp(App):
     def export_data(self, filepath):
         """Export data to CSV file"""
         return self.data_manager.export_to_csv(filepath)
+    
+    def on_pause(self):
+        """Called when app is paused (minimized on Android)"""
+        # Save data from data input screen if it exists
+        try:
+            data_input_screen = self.sm.get_screen('data_input')
+            data_input_screen._save_data()
+        except Exception:
+            pass
+        return True  # Return True to allow pause
+    
+    def on_stop(self):
+        """Called when app is stopped/closed"""
+        # Save data from data input screen if it exists
+        try:
+            data_input_screen = self.sm.get_screen('data_input')
+            data_input_screen._save_data()
+        except Exception:
+            pass
 
 
 if __name__ == '__main__':

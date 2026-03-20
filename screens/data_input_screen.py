@@ -507,6 +507,10 @@ class DataInputScreen(Screen):
                 if len(self.rows) == 0:
                     self.add_new_row(None)
     
+    def on_leave(self):
+        """Called when screen is exited - automatically save data"""
+        self._save_data()
+    
     def go_back(self, instance):
         """Navigate back to menu, saving data first"""
         self._save_data()
@@ -974,15 +978,7 @@ class DataInputScreen(Screen):
             self.show_message('Export Successful', f'Data exported to:\n{filepath}')
     
     def send_data(self, instance):
-        """Send data via email to registered addresses"""
-        # Get registered emails from settings
-        settings_screen = self.manager.get_screen('settings')
-        emails = settings_screen.get_registered_emails()
-        
-        if not emails:
-            self.show_message('No Recipients', 'Please register email addresses in Settings first.')
-            return
-        
+        """Send data via email - opens email app with CSV attached"""
         # Generate CSV file
         filepath, error = self._generate_csv_file()
         
@@ -990,8 +986,74 @@ class DataInputScreen(Screen):
             self.show_message('No Data' if 'No data' in error else 'Error', error)
             return
         
-        # Show sending confirmation
-        self._show_send_confirmation(filepath, emails)
+        # Directly open email app with attachment
+        try:
+            if platform == 'android':
+                self._send_android_email_direct(filepath)
+            else:
+                self._send_desktop_email_direct(filepath)
+        except Exception as e:
+            self.show_message('Send Failed', f'Could not open email app: {str(e)}')
+    
+    def _send_android_email_direct(self, filepath):
+        """Open email app on Android with CSV attachment - user adds recipients"""
+        try:
+            from jnius import autoclass, cast
+            
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+            File = autoclass('java.io.File')
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            String = autoclass('java.lang.String')
+            
+            intent = Intent(Intent.ACTION_SEND)
+            intent.setType('text/csv')  # CSV mime type
+            
+            # Set default subject (user can change it)
+            intent.putExtra(Intent.EXTRA_SUBJECT, String('Orion-DDH Resistivity Data'))
+            intent.putExtra(Intent.EXTRA_TEXT, String('Please find attached the resistivity measurement data from Orion-DDH.'))
+            
+            # Attach file
+            file = File(filepath)
+            context = PythonActivity.mActivity.getApplicationContext()
+            
+            try:
+                # Try to get FileProvider (for Android 7+)
+                FileProvider = autoclass('androidx.core.content.FileProvider')
+                authority = str(context.getPackageName()) + '.fileprovider'
+                uri = FileProvider.getUriForFile(context, String(authority), file)
+            except Exception:
+                # Fallback to Uri.fromFile for older Android
+                uri = Uri.fromFile(file)
+            
+            intent.putExtra(Intent.EXTRA_STREAM, cast('android.os.Parcelable', uri))
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            
+            # Open email app chooser (Gmail will be an option)
+            chooser = Intent.createChooser(intent, String('Send via Email'))
+            PythonActivity.mActivity.startActivity(chooser)
+            
+        except Exception as e:
+            self.show_message('Email Info', f'Data saved to:\n{filepath}\n\nPlease manually attach this file in your email app.')
+    
+    def _send_desktop_email_direct(self, filepath):
+        """Open email client on desktop with file info"""
+        try:
+            import webbrowser
+            import urllib.parse
+            import os
+            
+            # Get just the filename for the message
+            filename = os.path.basename(filepath)
+            
+            subject = urllib.parse.quote('Orion-DDH Resistivity Data')
+            body = urllib.parse.quote(f'Please find attached the resistivity measurement data.\n\nFile: {filename}\nLocation: {filepath}')
+            mailto = f"mailto:?subject={subject}&body={body}"
+            
+            webbrowser.open(mailto)
+            self.show_message('Email Ready', f'Email client opened.\n\nPlease manually attach:\n{filepath}')
+        except Exception as e:
+            self.show_message('Email Info', f'Data saved to:\n{filepath}\n\nPlease email manually.')
     
     def _show_send_confirmation(self, filepath, emails):
         """Show confirmation popup before sending"""

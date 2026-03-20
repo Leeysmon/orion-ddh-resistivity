@@ -312,7 +312,7 @@ class SettingsScreen(Screen):
         settings_layout.add_widget(about_label)
         
         about_info = Label(
-            text='Orion-DDH\nDDH Resistivity Data Logger\nVersion 1.3\n\nFor geological resistivity\nmeasurement data collection.',
+            text='Orion-DDH\nDDH Resistivity Data Logger\nVersion 2.0\n\nFor geological resistivity\nmeasurement data collection.',
             font_size=dp(14),
             size_hint_y=None,
             height=dp(120),
