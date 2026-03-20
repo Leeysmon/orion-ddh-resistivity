@@ -239,9 +239,9 @@ class DataInputScreen(Screen):
                 cell.bind(text=lambda instance, value, ri=row_index: self.on_box_changed(ri, value, instance))
                 row_widgets['box_num'] = cell
                 row_layout.add_widget(cell)
-            else:
-                # Editable fields
-                key_map = {'V1[V]': 'v1', 'V2[mV]': 'v2', 'Comment': 'comment'}
+            elif col_name in ['V1[V]', 'V2[mV]']:
+                # V1 and V2 fields with numeric keyboard
+                key_map = {'V1[V]': 'v1', 'V2[mV]': 'v2'}
                 field_key = key_map[col_name]
                 
                 cell = TextInput(
@@ -255,15 +255,29 @@ class DataInputScreen(Screen):
                     foreground_color=(1, 1, 1, 1),
                     cursor_color=(1, 1, 1, 1),
                     padding=[dp(5), dp(15), dp(5), dp(15)],
+                    halign='center',
+                    input_type='number'  # Numeric keyboard on mobile
+                )
+                cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_numeric_changed(ri, fn, value))
+                row_widgets[field_key] = cell
+                row_layout.add_widget(cell)
+            else:
+                # Comment field (text input)
+                cell = TextInput(
+                    text=row_data.get('comment', ''),
+                    multiline=False,
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    font_size=dp(20),
+                    background_color=(0.22, 0.22, 0.27, 1),
+                    foreground_color=(1, 1, 1, 1),
+                    cursor_color=(1, 1, 1, 1),
+                    padding=[dp(5), dp(15), dp(5), dp(15)],
                     halign='center'
                 )
-                
-                if field_key in ['v1', 'v2']:
-                    cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_numeric_changed(ri, fn, value))
-                else:
-                    cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_field_changed(ri, fn, value))
-                
-                row_widgets[field_key] = cell
+                cell.bind(text=lambda instance, value, ri=row_index: self.on_field_changed(ri, 'comment', value))
+                row_widgets['comment'] = cell
                 row_layout.add_widget(cell)
         
         self.rows.append(row_data)
@@ -623,8 +637,30 @@ class DataInputScreen(Screen):
                 cell.bind(text=lambda instance, value, ri=row_index: self.on_box_changed(ri, value, instance))
                 row_widgets['box_num'] = cell
                 row_layout.add_widget(cell)
+            elif col_name in ['V1[V]', 'V2[mV]']:
+                # V1 and V2 fields with numeric keyboard
+                key_map = {'V1[V]': 'v1', 'V2[mV]': 'v2'}
+                field_key = key_map[col_name]
+                
+                cell = TextInput(
+                    text='',
+                    multiline=False,
+                    size_hint=(None, None),
+                    width=col_width,
+                    height=dp(60),
+                    font_size=dp(20),
+                    background_color=(0.22, 0.22, 0.27, 1),
+                    foreground_color=(1, 1, 1, 1),
+                    cursor_color=(1, 1, 1, 1),
+                    padding=[dp(5), dp(15), dp(5), dp(15)],
+                    halign='center',
+                    input_type='number'  # Numeric keyboard on mobile
+                )
+                cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_numeric_changed(ri, fn, value))
+                row_widgets[field_key] = cell
+                row_layout.add_widget(cell)
             else:
-                # Editable fields (V1, V2, Comment)
+                # Comment field (text input)
                 cell = TextInput(
                     text='',
                     multiline=False,
@@ -638,16 +674,8 @@ class DataInputScreen(Screen):
                     padding=[dp(5), dp(15), dp(5), dp(15)],
                     halign='center'
                 )
-                
-                key_map = {'V1[V]': 'v1', 'V2[mV]': 'v2', 'Comment': 'comment'}
-                field_key = key_map[col_name]
-                row_widgets[field_key] = cell
-                
-                if col_name in ['V1[V]', 'V2[mV]']:
-                    cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_numeric_changed(ri, fn, value))
-                else:
-                    cell.bind(text=lambda instance, value, ri=row_index, fn=field_key: self.on_field_changed(ri, fn, value))
-                
+                cell.bind(text=lambda instance, value, ri=row_index: self.on_field_changed(ri, 'comment', value))
+                row_widgets['comment'] = cell
                 row_layout.add_widget(cell)
         
         self.rows.append(row_data)
